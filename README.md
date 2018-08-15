@@ -25,3 +25,5 @@ La centralina dell'arnia è costituita principalmente da : un microcontrollore A
 il suo compito è quello di inviare,a intervalli regolari, un pacchetto contenente la telemetria alla stazione centrale. 
 ### Station ricevente 
 La Stazione ricevente è una gemella del beacon (il modulo radio è impostato come ricevente), a cui è collegato un modulo ESP8266 per inviare il pacchetti ricevuti a un servizio di raccolta dati sul web (thingspeak.com) grazie alla connessione WiFi.
+
+goodluck
