@@ -36,7 +36,7 @@ const char*  ssid=MY_SSID;
 const char*  password=MY_PASSWORD;
 const int channelID = CHANNEL_ID;
 String writeAPIKey = SECRET_API_KEY; // write API key for your ThingSpeak Channel
-
+byte ECHO=1;//per mostrare i passaggi a fini di debug
 const char* server = "api.thingspeak.com";
 const int postingInterval = 1000;//20 * 1000; // post data every 20 seconds
 WiFiClient client;
