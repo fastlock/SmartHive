@@ -1,4 +1,4 @@
-[logo]:SMARTHIVE.png
+[logo]:logo.png
 ![logo]
 ## A OpenSource Hive monitoring system
 SmartHive nasce da un idea semplice di un apicoltore hobbista: monitorare via internet le attività e lo stato di salute delle arnie.
