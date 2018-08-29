@@ -172,6 +172,8 @@ void trasmetti(){
   lora_write(mydata);
   }
 void mostra(){
+  Serial.print("The lenght of my struct is:");
+  Serial.println(sizeof(mydata));
   Serial.println(mydata.ID);
   Serial.println(mydata.T0);
   Serial.println(mydata.T1);
