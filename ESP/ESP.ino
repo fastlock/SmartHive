@@ -1,63 +1,92 @@
 /*
- * SMARTHIVE-MODULO ESP 
- * Si occupa di ricevere via i2c i pacchetti dalla station LoRa e inviarli via wifi a thingspeak
-   ---------------------------------------------------
-   CONNESSIONI:
-   NODE MCU->ARDUINO PRO MICRO
-   SDA:D1->A4(Analog pin)
-   SCL:D2->A5(Analog pin)
-   GND->GND(il ground DEVE essere condiviso)
+******************************************************************************************************
+ ________  _____ ______   ________  ________  _________  ___  ___  ___  ___      ___ _______         *
+|\   ____\|\   _ \  _   \|\   __  \|\   __  \|\___   ___\\  \|\  \|\  \|\  \    /  /|\  ___ \        *
+\ \  \___|\ \  \\\__\ \  \ \  \|\  \ \  \|\  \|___ \  \_\ \  \\\  \ \  \ \  \  /  / | \   __/|       *
+ \ \_____  \ \  \\|__| \  \ \   __  \ \   _  _\   \ \  \ \ \   __  \ \  \ \  \/  / / \ \  \_|/__     *
+  \|____|\  \ \  \    \ \  \ \  \ \  \ \  \\  \|   \ \  \ \ \  \ \  \ \  \ \    / /   \ \  \_|\ \    *
+    ____\_\  \ \__\    \ \__\ \__\ \__\ \__\\ _\    \ \__\ \ \__\ \__\ \__\ \__/ /     \ \_______\   *
+   |\_________\|__|     \|__|\|__|\|__|\|__|\|__|    \|__|  \|__|\|__|\|__|\|__|/       \|_______|   *
+   \|_________|                                                                                      *
+******************************************************************************************************
+*                                         ESP8266 CODE
+*     Board:NodeMCU 1.0
+*     Version:1.0
+*     Author:Marco Manfrè
+*     Date:30/08/2018
+*     
+*     Description:
+*     "This code is listening passively on the serial (SoftwareSerial), 
+*     it makes a cast of the received stream inside the struct and finally 
+*     uses the Wlan connection to send a http write request on the Thingspeak server."
+*     
+*     Note:
+*     "all the parts that you should modify 
+*     to make the code work as it is on your service are in the definitions part"
+*     
+*     Connections:
+*     The LoRa module(sparkfun leather 32U ) is connected to the Node by 3 wires:
+*       1.GND->GND
+*       2.TX->D7
+*       3 RX->D6
+*     
+*****************************************************************************************************
+ 
 */
 
-#include <I2C_Anything.h>
-#include<Wire.h>
+
+
 #include <ESP8266WiFi.h>
-#define SlaveAddress 8            //definisco indirizzo periferica
-#define MY_SSID "XXXX"            //SSID dell'hotspot
-#define MY_PASSWORD "XXXX"        //password del hotspot
-#define CHANNEL_ID 12345          //ID del canale
-#define SECRET_API_KEY "xxxxxxx"  //chiave segreta per i permessi di scrittura sul canale
-#define WAIT 1000                 //ms di attesa tra l'invio di una richiesta e l'altra
+#include <SoftwareSerial.h>
+#define TX_PIN D7                                        //Serial TX pin
+#define RX_PIN D6                                       //Serial RX pin
+
+#define CHANNEL_ID 565995                             //check on "channel details" the id of your thingspeak channel
+
+#define WAIT 1000                                  //this define the latency between one request to another (ms)
+
+
 struct SensorPacket  {
-word ID;//1
-float T0;//2
+/*
+ * This struct contains the data of our sensors 
+ */
+float ID;//1         ID of the Hive
+float T0;//2         Temperature
 float T1;//3
 float T2;//4
-float Lux;//5
-float Load;//6
-float Temp_ext;//7
-float Allarm;//8
+float Lux;//5        Luminosity
+float Load;//6       Weight from the scale
+float Temp_ext;//7   Outside Temperature
+float Allarm;//8     Allarm Code
   };
 SensorPacket mydata;
 
-// ThingSpeak Settins
+SoftwareSerial myserial(TX_PIN,RX_PIN);
 
-const char*  ssid=MY_SSID;
-const char*  password=MY_PASSWORD;
-const int channelID = CHANNEL_ID;
-String writeAPIKey = SECRET_API_KEY; // write API key for your ThingSpeak Channel
-byte ECHO=1;//per mostrare i passaggi a fini di debug
+const char*  ssid=    "ssid"  ;
+const char*  password="passsword" ;
+const int channelID = CHANNEL_ID  ;
+String writeAPIKey=  "apikey"   ; 
 const char* server = "api.thingspeak.com";
-const int postingInterval = 1000;//20 * 1000; // post data every 20 seconds
+
+
 WiFiClient client;
+
+byte ECHO=1;//for debug purpose,when is set,the user serial interface is on 
+
 void setup() {
-  Wire.begin(2, 1); // inizializzo i pin sda, scl per la comunicazione
-  Serial.begin(9600);  // inizializzo la comunicazione seriale solo per DEBUG
-  Wire.begin(0,4);
+
+  myserial.begin(9600);
+  if(ECHO)
+    Serial.begin(9600);  
   WiFi.begin(ssid, password);
-  Serial.begin(9600); // start serial for out
-   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-}
+ Serial.println("connected");
+
 }
 
-/* Questa è la struttura dati da inviare
-  qui si inserisce il prototipo del pacchetto che riceverà il master
-  ##IMPORTANTE##
-  MASTER E SLAVE DEVONO AVERE LO STESSO PROTOTIPO
-*/
+
 void sendToCloud() {
-  //Questa funzione si occupa di costruire la richiesta HTTP da inviare ai server di Thingspeak
+  //this function build and send the message to the server 
     if (client.connect(server, 80)) {
   
 
@@ -94,6 +123,10 @@ void sendToCloud() {
     client.print(body);
 
   }
+  else{
+    if(ECHO)
+      Serial.println("**Connection error**");
+  }
   client.stop();
 
   
@@ -101,7 +134,8 @@ void sendToCloud() {
 
 }
 
-void mostra(){
+
+void show(){
   Serial.println(mydata.ID);
   Serial.println(mydata.T0);
   Serial.println(mydata.T1);
@@ -114,23 +148,30 @@ void mostra(){
 
 void loop() {
 
-
-
-  Wire.requestFrom(SlaveAddress, sizeof(SensorPacket ));// Richiedo struttura allo slave (attenzione a come è fatta la funzione:Wire.requestFrom(indirizzo slave,byte da ricevere)
-  delay(100);
-  I2C_readAnything (mydata);//quello che leggo riempie la mia struttura "vuota"
-  
+if(myserial.available()){
+  recv();
   if(ECHO){
-    Serial.println("...........");
-    mostra();
-    Serial.println("...........");
+      Serial.println("...........");
+      show();
+      Serial.println("...........");
+    }
+  sendToCloud ();
+  delay(WAIT);
   }
  
-  sendToCloud ();
-  
-  delay(WAIT);
-
-
-
 }
+
+void recv(){
+  //this funtion takes the raw data from the serial and build our struct
+    uint8_t * p = (uint8_t*) &mydata;
+    unsigned int i;
+    for (i = 0; i < sizeof mydata; i++){
+       
+              *p=myserial.read();
+              p=p+1;
+              delay(5);
+         }
+   
+}
+//\0-0/
 

@@ -1,30 +1,48 @@
 
-/*La teoria è che una struct più grande corrisponde a un valore di lunghezza > RH_RF95_MAX_MESSAGE_LEN
- * RH_RF95_MAX_MESSAGE_LEN è un valore integrato al driver della radio,non può essere modificato
- * una soluzione potrebbe essere quella di dividere il messaggio in sottomultipli compatibili e inviarli in treno
- * 
+/*
+                                                           ,-----.                 
+                                                    |     |                    
+                                                    ".___."                 
+                                                 ______|_____                       
+                                                |,----------.|            
+                                                ||          ||            
+                                                ||   LORA   ||                  
+                                                ||          ||                      
+                                                |`----------'|     ,--|=             
+                                                |o .... [###]|\_,--'  hjw            
+                                                |____________|        `97
+    
+
+ *      ---------------------------------SENDING STRUCT OVER LORA---------------------------------------------- 
+ *     Author:Marco Manfrè
+*      Version:2.0
+*      
+*      Description:
+ *     The theory is that a larger struct corresponds to a length value> RH_RF95_MAX_MESSAGE_LEN
+*      RH_RF95_MAX_MESSAGE_LEN is a value integrated into the radio driver, it can not be changed.
+ *     A solution could be to divide the message into compatible submultiples and send them one after the other 
 */
 #define MAX RH_RF95_MAX_MESSAGE_LEN
 template <typename T> unsigned int lora_write (const T& value)
   {
   
-  if(rf95.send((uint8_t *) &value, sizeof (value)))//se la funzione restituisce falso,il messaggio è troppo grande
+  if(rf95.send((uint8_t *) &value, sizeof (value)))//the message is ok,send them as it is
   return sizeof (value);
   else {
-    //il messaggio è troppo grande devo dividerlo e inviarlo a pezzi
-    uint8_t split_op;//uso questo numero per capire quanti messaggi devo inviare
+    //the message is too big,it must be divided
+    uint8_t split_op;//i use this variable for storing the number of sub-message i must send
     split_op  = sizeof(value)%RH_RF95_MAX_MESSAGE_LEN;
-    split_op += sizeof(value)/RH_RF95_MAX_MESSAGE_LEN;
-    T split[split_op];
+    split_op += sizeof(value)/RH_RF95_MAX_MESSAGE_LEN;//count the number of packets 
+    T split[split_op];//create an array 
     uint8_t i;
-    uint8_t * p = (byte*) &value;
+    uint8_t * p = (byte*) &value;//store the head address of my structure
     for(i=0;i<split_op;i++){
-      memcpy(&split[i],p,RH_RF95_MAX_MESSAGE_LEN);
+      memcpy(&split[i],p,RH_RF95_MAX_MESSAGE_LEN);//divide the content of main structure in the array fragments 
       p=p+RH_RF95_MAX_MESSAGE_LEN;
     }
     i=0;
     for(i=0;i<split_op;i++){
-      if(!rf95.send((uint8_t *) &split[i],sizeof(split)))
+      if(!rf95.send((uint8_t *) &split[i],sizeof(split)))//now send the fragments
         return 1000+i;
     }
   }
@@ -32,14 +50,14 @@ template <typename T> unsigned int lora_write (const T& value)
 } 
 template <typename T> unsigned int lora_read(T& value)
   {
-    //in teoria anche se il messaggio arriva a pezzi dovrebbe unirlo lo stesso
+    //even if the message recived is fragmented the function waits until the structure is complete
     
-    uint8_t * p = (byte*) &value;// parte alta dell'indirizzo
-    uint8_t  lunghezza =sizeof(value);
+    uint8_t * p = (byte*) &value;
+    uint8_t  len =sizeof(value);
     unsigned int i;
     for (i = 0; i < sizeof value; i++){
        
-              rf95.recv( p ,&lunghezza);
+              rf95.recv( p ,&len);
               p=p+1;
         
          }
